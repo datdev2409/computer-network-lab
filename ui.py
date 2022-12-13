@@ -3,6 +3,7 @@ import tkinter
 import customtkinter
 from peer import Peer
 from datetime import datetime
+from tkinter import filedialog
 
 host = '127.0.0.1'
 port = sys.argv[1] or 8001
@@ -37,16 +38,32 @@ class App(customtkinter.CTk):
     self.textbox.pack()
 
     self.input_frame = customtkinter.CTkFrame(master=self, width=800, height=50)
-    self.msg_input = customtkinter.CTkEntry(master=self.input_frame, width=650, height=50)
-    self.msg_input.grid(row = 0, column = 0)
+    self.msg_input = customtkinter.CTkEntry(master=self.input_frame, width=600, height=50)
+    self.msg_input.grid(row = 0, column = 1)
     self.send_btn = customtkinter.CTkButton(
       master=self.input_frame,
       height=50,
       text="Send >",
       command=self.send_msg
     )
-    self.send_btn.grid(row = 0, column = 1)
+    self.send_btn.grid(row = 0, column = 2)
+    self.browse_file_btn = customtkinter.CTkButton(
+      master=self.input_frame,
+      width=60,
+      height=50,
+      text="File",
+      command=self.browse_file
+    )
+    self.browse_file_btn.grid(row = 0, column=0)
     self.input_frame.pack()
+
+  def browse_file(self):
+    filename = filedialog.askopenfilename(initialdir="/home")
+    f = open(filename, "rb")
+
+    f2 = open("test.txt", "wb")
+    f2.write(f.read())
+    print(filename)
 
   def receive_msg(self, msg):
     now = datetime.now()

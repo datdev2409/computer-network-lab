@@ -72,22 +72,6 @@ class Peer(threading.Thread):
     
     return False
   
-
-  # def connect_to_other(self, host, port):
-  #   s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  #   s.connect((host, port))
-
-  #   initial_msg = "{name} {host}:{port}".format(
-  #     name=self.name,
-  #     host=self.host,
-  #     port=self.port
-  #   )
-  #   s.send(initial_msg.encode())
-
-  #   client_thread = threading.Thread(target=self.get_msg, args=[s, (host, port)])
-  #   client_thread.start()
-  #   connection = Connection(s, (host, port))
-  #   self.outbound_conns.append(connection)
   def close(self):
     self.socket.close()
     self.server_socket.close()
@@ -175,6 +159,7 @@ class Peer(threading.Thread):
         self.inbound_conns.append(connection)
     
       except KeyboardInterrupt:
+        self.close()
         self.terminate_flag.set()
 
 
