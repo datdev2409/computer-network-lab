@@ -58,6 +58,7 @@ class Peer(threading.Thread):
       msg = conn.recv(1024)  
 
       if not msg or msg == "bye":
+        self.terminate_flag.set()
         break
       print(msg)
 
@@ -87,6 +88,10 @@ class Peer(threading.Thread):
   #   client_thread.start()
   #   connection = Connection(s, (host, port))
   #   self.outbound_conns.append(connection)
+  def close(self):
+    self.socket.close()
+    self.server_socket.close()
+    self.terminate_flag.set()
   
 
   def get_addr_by_name(self, name):
@@ -219,7 +224,7 @@ def main():
         peer.send_msg_by_name(msg, name)
   
   except KeyboardInterrupt:
-    peer.c
+    peer.close()
 
 if __name__ == "__main__":
   main()

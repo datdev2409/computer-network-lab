@@ -74,8 +74,10 @@ class App(customtkinter.CTk):
 
     print(self.msg_input.get())
     self.peer.send_msg_by_name(self.msg_input.get(), name)
+    self.msg_input.delete(0, customtkinter.END)
 
   
 if __name__ == "__main__":
     app = App()
     app.mainloop()
+    app.peer.close()
