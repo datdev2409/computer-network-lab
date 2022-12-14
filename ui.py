@@ -23,7 +23,7 @@ class App(CTk):
 
     self.friend_frame = CTkFrame(master=self, width=800, height=50)
     self.friend_list = CTkComboBox(master=self.friend_frame, width=500, height=50)
-    self.friend_list.grid(row = 0, column = 0)
+    self.friend_list.grid(row = 0, column = 0, padx = 5, pady = 5)
     self.reload_btn = CTkButton(
       master=self.friend_frame,
       width=100,
@@ -31,7 +31,7 @@ class App(CTk):
       height=50,
       command=self.get_active_nodes
     )
-    self.reload_btn.grid(row = 0, column = 1)
+    self.reload_btn.grid(row = 0, column = 1, padx = 5, pady = 5)
     self.friend_frame.pack()
   
     self.textbox = CTkTextbox(master=self, width=800, height=400)
@@ -40,14 +40,14 @@ class App(CTk):
 
     self.input_frame = CTkFrame(master=self, width=800, height=50)
     self.msg_input = CTkEntry(master=self.input_frame, width=600, height=50)
-    self.msg_input.grid(row = 0, column = 1)
+    self.msg_input.grid(row = 0, column = 1, padx = 5, pady = 5)
     self.send_btn = CTkButton(
       master=self.input_frame,
       height=50,
       text="Send >",
       command=self.send_msg
     )
-    self.send_btn.grid(row = 0, column = 2)
+    self.send_btn.grid(row = 0, column = 2, padx = 5, pady = 5)
     self.browse_file_btn = CTkButton(
       master=self.input_frame,
       width=60,
@@ -55,7 +55,7 @@ class App(CTk):
       text="File",
       command=self.browse_file
     )
-    self.browse_file_btn.grid(row = 0, column=0)
+    self.browse_file_btn.grid(row = 0, column=0, padx = 5, pady = 5)
     self.input_frame.pack()
 
 
@@ -75,15 +75,12 @@ class App(CTk):
 
   def receive_msg(self, msg):
     now = datetime.now()
-    current_time = now.strftime("%H:%M:%S")
+    current_time = now.strftime("%H:%M")
     self.textbox.insert(tkinter.END, "\n----" + current_time + "\n" + msg )
 
   def get_active_nodes(self):
-    if self.friend_list: self.friend_list.destroy()
     active_nodes = self.peer.get_active_nodes().split("\n")
-
-    self.friend_list = CTkComboBox(master=self.friend_frame, width=500, height=50, values=active_nodes)
-    self.friend_list.grid(row = 0, column = 0)
+    self.friend_list.configure(values = active_nodes)
   
   def connect_to_node(self):
     node_str = self.combobox.get()
