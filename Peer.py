@@ -26,7 +26,7 @@ class Peer(threading.Thread):
 
     self.debug = True
     self.active = False
-    self.file_receive_mode = False
+    self.file_receiving = False
     self.terminate_flag = threading.Event()
 
     # Hooks
@@ -67,42 +67,61 @@ class Peer(threading.Thread):
   def create_outbound_connection(self, sock, name, host, port, callback = None):
     return NodeConnection(self, sock, name, host, port, callback)
 
-  def handle_connection(self, conn : NodeConnection):
-    data = []
-    while not conn.terminate_flag.is_set():
-      msg = conn.sock.recv(1024)
-
-      if not msg:
-        conn.terminate_flag.set()
-        break
-      
-      if not self.file_receive_mode and msg.decode().startswith("/FILE/"):
-        self.file_receive_mode = True
-        Path(f"{self.name}").mkdir(exist_ok=True)
-        file_name, file_size = msg.decode().split(":")[1:]
-        self.des_file = Path(f"{self.name}/{file_name}")
-        # self.des_file = open(f"{self.name}/{file_name}", "wb")
-        self.debug_print("Handle receiving file")
-      
-      elif msg.decode(errors="ignore").startswith("/END/"):
-        self.file_receive_mode = False
-        self.des_file.write_bytes(b''.join(data))
-        path = self.des_file.absolute()
-        self.des_file = None
-        data = []
-        # if self.on_file_sent: self.on_file_sent(path)
-        self.use_hook(self.on_file_sent, path)
-        self.debug_print("File sent")
-      
-      elif self.file_receive_mode:
-        data.append(msg)
-
-      elif not self.file_receive_mode:
-        self.use_hook(self.on_receive_msg, f"{conn.name}: {msg.decode()}")
-
-      print(msg)
-      print("\n----------------------\n")
+  def get_file_info(self, inital_msg):
+    # initial_msg: /FILE/:{file_name}:{file_size}
+    file_name, file_size = inital_msg.split(":")[1:]
+    return (file_name, int(file_size))
   
+  def create_dir(self, dir_name):
+    Path(dir_name).mkdir(exist_ok=True)
+  
+  def receive_file_data(self, conn : NodeConnection, file_size):
+    chunks = []
+    totalrecv = 0
+    chunk = conn.receive()
+    totalrecv += len(chunk)
+    chunks.append(chunk)
+
+    if (totalrecv == file_size):
+      self.file_receiving = False
+
+
+  def handle_connection(self, conn : NodeConnection):
+    buffers = []
+    file_size = 0
+    file_name = ''
+    totalrecv = 0
+
+    while not conn.terminate_flag.is_set():
+      data = conn.receive()
+      if not data:
+        conn.close()
+        return
+
+      elif self.file_receiving:
+        totalrecv += len(data)
+        buffers.append(data)
+
+        if (totalrecv >= file_size):
+          self.file_receiving = False
+          self.des_file.write_bytes(b''.join(buffers))
+          path = self.des_file.absolute()
+          self.des_file = None
+          buffers = []
+          self.use_hook(self.on_file_sent, path)
+
+      else:
+        msg = data.decode()
+        if msg.startswith("/FILE/"):
+          self.file_receiving = True
+          dir_name = f"{self.name}_data"
+          self.create_dir(dir_name)
+          file_name, file_size = self.get_file_info(msg)
+          self.des_file = Path(f"{dir_name}/{file_name}")
+        
+        else:
+          self.use_hook(self.on_receive_msg, f"{conn.name}: {msg}")
+          
   def get_active_nodes(self):
     if not self.active:
       self.connect_central_server()
@@ -184,8 +203,6 @@ class Peer(threading.Thread):
     # send file data
     data = source_file.read()
     connection.sock.sendall(data)
-    time.sleep(1) 
-    connection.sock.sendall("/END/".encode())
 
   def close(self):
     self.sock.settimeout(0.0)
