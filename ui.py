@@ -16,7 +16,9 @@ class App(CTk):
 
     self.title(name)
 
-    self.peer = Peer(name, host, port, (host, server_port), self.receive_msg)
+    self.peer = Peer(name, host, port, (host, server_port))
+    self.peer.on_file_sent = self.receive_file
+    self.peer.on_receive_msg = self.receive_msg
     self.peer.start()
 
     self.friend_frame = CTkFrame(master=self, width=800, height=50)
@@ -55,6 +57,14 @@ class App(CTk):
     )
     self.browse_file_btn.grid(row = 0, column=0)
     self.input_frame.pack()
+
+
+  def receive_file(self, path):
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    msg = f"File is stored in {path} \n"
+    self.textbox.insert(END, "\n----" + current_time + "\n")
+    self.textbox.insert(END, msg)
 
   def browse_file(self):
     print("Send file")

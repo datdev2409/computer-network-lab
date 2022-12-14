@@ -7,13 +7,12 @@ from pathlib import Path
 from NodeConnection import NodeConnection
 
 class Peer(threading.Thread):
-  def __init__(self, name, host, port, server_addr, callback = None):
+  def __init__(self, name, host, port, server_addr):
     threading.Thread.__init__(self, daemon=True)
     self.name = name
     self.host = host
     self.port = port
     self.server_addr = server_addr
-    self.callback = callback
 
     # socket open for listenning incomming request
     self.server_socket = s.socket(s.AF_INET, s.SOCK_STREAM)
@@ -29,6 +28,14 @@ class Peer(threading.Thread):
     self.active = False
     self.file_receive_mode = False
     self.terminate_flag = threading.Event()
+
+    # Hooks
+    self.on_file_sent = None
+    self.on_receive_msg = None
+    self.on_sent_msg = None
+
+  def use_hook(self, hook, *args):
+    if hook : hook(*args)
 
   def debug_print(self, msg):
     if self.debug: print(msg)
@@ -80,15 +87,18 @@ class Peer(threading.Thread):
       elif msg.decode(errors="ignore").startswith("/END/"):
         self.file_receive_mode = False
         self.des_file.write_bytes(b''.join(data))
+        path = self.des_file.absolute()
         self.des_file = None
         data = []
+        # if self.on_file_sent: self.on_file_sent(path)
+        self.use_hook(self.on_file_sent, path)
         self.debug_print("File sent")
       
       elif self.file_receive_mode:
         data.append(msg)
 
-      elif self.callback and not self.file_receive_mode:
-        self.callback(msg.decode())
+      elif not self.file_receive_mode:
+        self.use_hook(self.on_receive_msg, f"{conn.name}: {msg.decode()}")
 
       print(msg)
       print("\n----------------------\n")
