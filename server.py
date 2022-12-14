@@ -9,18 +9,11 @@ class Server():
     self.port = port
     self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     self.terminate_flag = threading.Event()
-
     self.active_nodes = []
     
-  def create_new_connection(self, sock, name, host, port):
-    return NodeConnection(self, sock, name, host, port)
-
-  def node_connected(self, conn : NodeConnection):
-    msg = conn.socket.recv(1024);
-    if not msg:
-      conn.stop()
+  def create_new_connection(self, sock, name, host, port, callback = None):
+    return NodeConnection(self, sock, name, host, port, callback)
   
-
   def close_connection(self, connection_str):
     print(connection_str + " disconnected")
     self.active_nodes = list(filter(
@@ -28,12 +21,25 @@ class Server():
       self.active_nodes
     ))
 
-
   def get_active_nodes(self):
     active_nodes_str = map(lambda node : node.to_string(), self.active_nodes)
     msg = "\n".join(active_nodes_str)
     return msg
-
+  
+  def handle_connection(self, conn : NodeConnection):
+    while not conn.terminate_flag.is_set():
+      msg = conn.sock.recv(1024).decode()
+      if (msg == "list"):
+        print(self.get_active_nodes())
+        conn.send(self.get_active_nodes().encode())
+      
+      if not msg or msg == "bye":
+        self.active_nodes = list(filter(
+          lambda node : node.to_string() != conn.to_string(),
+          self.active_nodes
+        ))
+        conn.terminate_flag.set()
+        break;
 
   def start(self):
     self.socket.bind((self.host, self.port))
@@ -46,7 +52,7 @@ class Server():
         (name, node_addr) = initial_msg.split(" ")
         (host, port) = node_addr.split(":")
 
-        client_thread = self.create_new_connection(conn, name, host, port)
+        client_thread = self.create_new_connection(conn, name, host, port, self.handle_connection)
         client_thread.start()
 
         self.active_nodes.append(client_thread)
