@@ -33,6 +33,7 @@ class Peer(threading.Thread):
     self.on_file_sent = None
     self.on_receive_msg = None
     self.on_sent_msg = None
+    self.on_sent_file = None
 
   def use_hook(self, hook, *args):
     if hook : hook(*args)
@@ -84,7 +85,6 @@ class Peer(threading.Thread):
 
     if (totalrecv == file_size):
       self.file_receiving = False
-
 
   def handle_connection(self, conn : NodeConnection):
     buffers = []
@@ -169,6 +169,7 @@ class Peer(threading.Thread):
     for conn in self.outbound_conns + self.inbound_conns:
       if conn.name == name:
         conn.send(msg.encode())
+        self.on_sent_msg(msg)
         return True
     
     self.debug_print(f"[-] Can not find node with name={name}")
@@ -203,6 +204,7 @@ class Peer(threading.Thread):
     # send file data
     data = source_file.read()
     connection.sock.sendall(data)
+    self.use_hook(self.on_sent_file, f"Sent {file_name}")
 
   def close(self):
     self.sock.settimeout(0.0)

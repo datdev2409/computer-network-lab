@@ -19,6 +19,8 @@ class App(CTk):
     self.peer = Peer(name, host, port, (host, server_port))
     self.peer.on_file_sent = self.receive_file
     self.peer.on_receive_msg = self.receive_msg
+    self.peer.on_sent_msg = self.on_sent_msg
+    self.peer.on_sent_file = self.on_sent_file
     self.peer.start()
 
     self.friend_frame = CTkFrame(master=self, width=800, height=50)
@@ -58,13 +60,25 @@ class App(CTk):
     self.browse_file_btn.grid(row = 0, column=0, padx = 5, pady = 5)
     self.input_frame.pack()
 
+  def on_sent_file(self, msg):
+    now = datetime.now()
+    current_time = now.strftime("%H:%M")
+    self.textbox.insert(END, f"\n{current_time}\n")
+    self.textbox.insert(END, f"Sent: {msg}\n")
+
+  def on_sent_msg(self, msg):
+    now = datetime.now()
+    current_time = now.strftime("%H:%M")
+    self.textbox.insert(END, f"\n{current_time}\n")
+    self.textbox.insert(END, f"Sent: {msg}\n")
 
   def receive_file(self, path):
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
     msg = f"File is stored in {path} \n"
-    self.textbox.insert(END, "\n----" + current_time + "\n")
-    self.textbox.insert(END, msg)
+
+    self.textbox.insert(END, f"\n{current_time}\n")
+    self.textbox.insert(END, msg + "\n")
 
   def browse_file(self):
     print("Send file")
@@ -76,7 +90,9 @@ class App(CTk):
   def receive_msg(self, msg):
     now = datetime.now()
     current_time = now.strftime("%H:%M")
-    self.textbox.insert(tkinter.END, "\n----" + current_time + "\n" + msg )
+
+    self.textbox.insert(END, f"\n{current_time}\n")
+    self.textbox.insert(END, msg)
 
   def get_active_nodes(self):
     active_nodes = self.peer.get_active_nodes().split("\n")
