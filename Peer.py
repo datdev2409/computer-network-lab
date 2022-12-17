@@ -214,6 +214,7 @@ class Peer(threading.Thread):
 
     # send initial msg to indicate file name, extension and size
     connection.send(initial_msg.encode())
+    time.sleep(0.5)
 
     # send file data
     while True:
