@@ -10,8 +10,12 @@ class Peer(threading.Thread):
   def __init__(self, name, host, port, server_addr):
     threading.Thread.__init__(self, daemon=True)
     self.name = name
+
+    # host and port for server program
     self.host = host
     self.port = port
+
+    # central server address (to get list friend)
     self.server_addr = server_addr
 
     # socket open for listenning incomming request
@@ -97,30 +101,32 @@ class Peer(threading.Thread):
       if not data:
         conn.close()
         return
+      
+      print(data.decode(errors="ignore"))
+      if not self.file_receiving and data.decode().startswith("/FILE/"):
+        msg = data.decode()
+        self.file_receiving = True
+        dir_name = f"{self.name}_data"
+        self.create_dir(dir_name)
+        file_name, file_size = self.get_file_info(msg)
+        self.des_file = Path(f"{dir_name}/{file_name}")
+        self.debug_print("Start receive file data")
+
+      elif data.decode(errors="ignore") == "/END/":
+        self.debug_print("End receive file data")
+        self.file_receiving = False
+        self.des_file.write_bytes(b''.join(buffers))
+        path = self.des_file.absolute()
+        self.des_file = None
+        buffers = []
+        self.use_hook(self.on_file_sent, path)
 
       elif self.file_receiving:
-        totalrecv += len(data)
         buffers.append(data)
-
-        if (totalrecv >= file_size):
-          self.file_receiving = False
-          self.des_file.write_bytes(b''.join(buffers))
-          path = self.des_file.absolute()
-          self.des_file = None
-          buffers = []
-          self.use_hook(self.on_file_sent, path)
 
       else:
         msg = data.decode()
-        if msg.startswith("/FILE/"):
-          self.file_receiving = True
-          dir_name = f"{self.name}_data"
-          self.create_dir(dir_name)
-          file_name, file_size = self.get_file_info(msg)
-          self.des_file = Path(f"{dir_name}/{file_name}")
-        
-        else:
-          self.use_hook(self.on_receive_msg, f"{conn.name}: {msg}")
+        self.use_hook(self.on_receive_msg, f"{conn.name}: {msg}")
           
   def get_active_nodes(self):
     if not self.active:
@@ -146,14 +152,22 @@ class Peer(threading.Thread):
       print(conn.to_string())
 
   def connect_other_node(self, name):
+    # get addr by name from central server
     addr = self.get_peer_addr(name)
+
     if not addr:
       self.debug_print(f"Can not find node with name={name}")
       return False
+
+    # Connect to other peer
     sock = s.socket(s.AF_INET, s.SOCK_STREAM)
     sock.connect(addr)
+
+    # send syn msg
     syn_msg = f"{self.name} {self.host}:{self.port}"
     sock.send(syn_msg.encode())
+
+    # store connection in outbound connections
     connection = self.create_outbound_connection(sock, name, addr[0], addr[1], self.handle_connection)
     connection.start()
     self.outbound_conns.append(connection)
@@ -202,8 +216,19 @@ class Peer(threading.Thread):
     connection.send(initial_msg.encode())
 
     # send file data
-    data = source_file.read()
-    connection.sock.sendall(data)
+    while True:
+      data = source_file.read(1024)
+      if not data:
+        print("send done")
+        break
+      connection.sock.send(data)
+
+    time.sleep(1)
+    connection.sock.send("/END/".encode("utf-8"))
+
+    # data = source_file.read()
+    # connection.sock.sendall(data)
+
     self.use_hook(self.on_sent_file, f"Sent {file_name}")
 
   def close(self):
@@ -218,6 +243,8 @@ class Peer(threading.Thread):
 
     while not self.terminate_flag.is_set():
       conn, addr = self.server_socket.accept()
+
+      # {name} {host}:{port}
       syn_msg = conn.recv(1024).decode()
       connection = self.create_inbound_connection(conn, syn_msg, self.handle_connection)
       connection.start()
